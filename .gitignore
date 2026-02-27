@@ -148,3 +148,5 @@ dist
 *.db-*
 .netlify
 .vercel
+
+.pnpm-store

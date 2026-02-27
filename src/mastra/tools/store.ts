@@ -41,7 +41,8 @@ export const checkNearStoreTool = createTool({
   }),
   
   execute: async (inputData) => {
-    const { userId, latitude, longitude } = inputData;
+    const { latitude, longitude } = inputData;
+    const userId = process.env.DEV_USER_ID || 'test_user';
     
     const result = await sql`
       SELECT * FROM user_stores
@@ -97,7 +98,8 @@ export const registerStoreTool = createTool({
   }),
   
   execute: async (inputData) => {
-    const { userId, name, latitude, longitude, radius = 100 } = inputData;
+    const { name, latitude, longitude, radius = 100 } = inputData;
+    const userId = process.env.DEV_USER_ID || 'test_user';
     
     await sql`
       INSERT INTO user_stores (user_id, name, latitude, longitude, radius)

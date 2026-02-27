@@ -22,7 +22,8 @@ export const addItemsTool = createTool({
   }),
   
   execute: async (inputData) => {  // ⚠️ v1形式: 第1引数がinputData
-    const { items, userId } = inputData;
+    const { items } = inputData;
+    const userId = process.env.DEV_USER_ID || 'test_user';
     
     // カンマや「と」で分割
     const itemList = items
@@ -83,7 +84,8 @@ export const getShoppingListTool = createTool({
   }),
   
   execute: async (inputData) => {
-    const { userId, includeCompleted = false } = inputData;
+    const { includeCompleted = false } = inputData;
+    const userId = process.env.DEV_USER_ID || 'test_user';
     
     let query;
     if (includeCompleted) {
@@ -143,7 +145,8 @@ export const completeItemsTool = createTool({
   }),
   
   execute: async (inputData) => {
-    const { items, userId } = inputData;
+    const { items } = inputData;
+    const userId = process.env.DEV_USER_ID || 'test_user';
     
     // 分割
     const itemList = items
@@ -202,7 +205,7 @@ export const clearListTool = createTool({
   }),
   
   execute: async (inputData) => {
-    const { userId } = inputData;
+    const userId = process.env.DEV_USER_ID || 'test_user';
     
     await sql`
       DELETE FROM shopping_items
