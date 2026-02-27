@@ -1,6 +1,5 @@
 // mastra/agents/shopping.ts
 import { Agent } from '@mastra/core/agent';
-import { google } from '@ai-sdk/google';  // ⚠️ openai から google に変更
 import {
   addItemsTool,
   getShoppingListTool,
@@ -37,7 +36,7 @@ export const shoppingAgent: Agent = new Agent({
 - 完了時は褒める
   `.trim(),
   
-  model: google('gemini-2.5-flash-lite'),
+  model: 'google/gemini-2.5-flash',
   
   tools: {
     addItems: addItemsTool,
