@@ -2,12 +2,12 @@
 
 // Vercel環境かどうかをチェック
 const isVercel = process.env.VERCEL === '1';
-console.log('[db] モジュール読み込み', {
+console.error('[db] モジュール読み込み', JSON.stringify({
   isVercel,
   hasDatabaseUrl: !!process.env.DATABASE_URL,
   hasPostgresUrl: !!process.env.POSTGRES_URL,
   hasPostgresUrlNonPooling: !!process.env.POSTGRES_URL_NON_POOLING,
-});
+}));
 
 // Vercel環境の場合のみPostgresをインポート
 let sql: any;
@@ -29,17 +29,17 @@ if (isVercel) {
         : process.env.POSTGRES_URL_NON_POOLING
           ? 'POSTGRES_URL_NON_POOLING'
           : 'none';
-    console.log('[db] getClient', {
+    console.error('[db] getClient', JSON.stringify({
       urlSource,
       hasUrl: !!url,
       urlLength: url ? url.length : 0,
-    });
+    }));
     if (!url) {
       throw new Error(
         '接続用の環境変数がありません。DATABASE_URL / POSTGRES_URL / POSTGRES_URL_NON_POOLING のいずれかを設定してください。'
       );
     }
-    console.log('[db] createClient (sql) を実行します');
+    console.error('[db] createClient (sql) を実行します');
     const { createClient } = require('@vercel/postgres');
     _client = createClient({ connectionString: url });
     return _client;
@@ -167,19 +167,19 @@ export async function initDatabase() {
           : process.env.POSTGRES_URL
             ? 'POSTGRES_URL'
             : 'none';
-    console.log('[db] initDatabase', {
+    console.error('[db] initDatabase', JSON.stringify({
       directUrlSource,
       hasDirectUrl: !!directUrl,
       directUrlLength: directUrl ? directUrl.length : 0,
-    });
+    }));
     if (!directUrl) {
       throw new Error(
         '接続用の環境変数がありません。DATABASE_URL / POSTGRES_URL / POSTGRES_URL_NON_POOLING / DIRECT_URL のいずれかを設定してください。'
       );
     }
-    console.log('[db] initDatabase createClient を実行します');
+    console.error('[db] initDatabase createClient を実行します');
     const client = createClient({ connectionString: directUrl });
-    console.log('[db] initDatabase client.connect を実行します');
+    console.error('[db] initDatabase client.connect を実行します');
     await client.connect();
 
     try {
@@ -217,15 +217,15 @@ export async function initDatabase() {
       await client.end();
     }
 
-    console.log('[db] initDatabase 成功');
+    console.error('[db] initDatabase 成功');
     return { success: true };
   } catch (error) {
     const err = error as Error & { code?: string };
-    console.error('[db] initDatabase 失敗', {
+    console.error('[db] initDatabase 失敗', JSON.stringify({
       message: err?.message,
       code: err?.code,
       name: err?.name,
-    });
+    }));
     throw error;
   }
 }
