@@ -5,7 +5,9 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "mastra dev",
+    "dev": "mastra dev & next dev",
+    "dev:next": "next dev",
+    "dev:mastra": "mastra dev",
     "build": "mastra build && next build",
     "start": "mastra start",
     "test:mastra": "npx tsx src/scripts/test-mastra.ts"

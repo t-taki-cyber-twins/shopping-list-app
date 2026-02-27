@@ -36,7 +36,7 @@ export const shoppingAgent: Agent = new Agent({
 - 完了時は褒める
   `.trim(),
   
-  model: 'google/gemini-2.5-flash',
+  model: 'google/gemini-2.5-flash-lite',
   
   tools: {
     addItems: addItemsTool,

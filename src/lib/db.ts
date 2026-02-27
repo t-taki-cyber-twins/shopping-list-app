@@ -3,19 +3,31 @@
 // Vercel環境かどうかをチェック
 const isVercel = process.env.VERCEL === '1';
 
-// Vercel環境の場合のみPostgresをインポート
+// ローカルで Postgres に接続する場合は DATABASE_URL 等を設定する
+const getLocalDbUrl = () =>
+  process.env.DATABASE_URL ||
+  process.env.POSTGRES_URL ||
+  process.env.POSTGRES_URL_NON_POOLING;
+
+const url = getLocalDbUrl();
+const useLocalPostgres = !isVercel && !!url;
+
+console.log('🔍 DB Initialization Check:', {
+  isVercel,
+  hasUrl: !!url,
+  urlLength: url?.length || 0,
+  useLocalPostgres,
+  NODE_ENV: process.env.NODE_ENV
+});
+
 let sql: any;
 
-if (isVercel) {
-  // Prisma Postgres の DATABASE_URL は @vercel/postgres（Neon WebSocket）で 404 になるため、
-  // 標準の pg（TCP）を使用する。
+if (isVercel || useLocalPostgres) {
+  // Vercel またはローカルで DATABASE_URL 等が設定されている場合: pg（TCP）を使用
   let _pool: any = null;
   function getPool() {
     if (_pool) return _pool;
-    const url =
-      process.env.DATABASE_URL ||
-      process.env.POSTGRES_URL ||
-      process.env.POSTGRES_URL_NON_POOLING;
+    const url = getLocalDbUrl();
     if (!url) {
       throw new Error(
         '接続用の環境変数がありません。DATABASE_URL / POSTGRES_URL / POSTGRES_URL_NON_POOLING のいずれかを設定してください。'
@@ -34,8 +46,8 @@ if (isVercel) {
   }
   sql = sqlTag;
 } else {
-  // ローカル環境ではモック
-  console.log('⚠️ ローカル環境: PostgreSQLモック使用');
+  // ローカル環境かつ DB URL 未設定時はモック
+  console.warn('⚠️ ローカル開発環境: PostgreSQLへの接続情報が設定されていないため、インメモリのモックデータを使用します。');
   sql = createMockSql();
 }
 
@@ -129,9 +141,12 @@ export async function initDatabase(): Promise<
   | { success: true }
   | { success: false; error: string; code?: string; debug: Record<string, unknown> }
 > {
+  // ローカル環境でも初期化を実行できるように制限を解除
+/*
   if (!isVercel) {
     return { success: true };
   }
+*/
 
   const directUrl =
     process.env.POSTGRES_URL_NON_POOLING ||

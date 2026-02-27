@@ -16,10 +16,12 @@ function getEnvDebug() {
 export async function GET() {
   const envDebug = getEnvDebug();
   try {
-    if (process.env.VERCEL !== '1') {
+    // 開発環境またはVercel環境であれば実行を許可
+    const isDev = process.env.NODE_ENV === 'development';
+    if (process.env.VERCEL !== '1' && !isDev) {
       return NextResponse.json({
-        error: 'この操作はVercel環境でのみ実行できます',
-        _debug: { env: envDebug, step: 'vercel_check' },
+        error: 'この操作はVercel環境または開発環境でのみ実行できます',
+        _debug: { env: envDebug, step: 'environment_check' },
       }, { status: 403 });
     }
 

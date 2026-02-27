@@ -22,6 +22,7 @@ export const addItemsTool = createTool({
   
   execute: async (inputData) => {  // ⚠️ v1形式: 第1引数がinputData
     const { items } = inputData;
+    console.log('🛠️ addItemsTool executed:', { items });
     const userId = process.env.DEV_USER_ID || 'user_test_123';
     
     // カンマや「と」で分割

@@ -1,4 +1,4 @@
-// mastra/index.ts
+import 'dotenv/config'; // 最初に追加
 import { Mastra } from '@mastra/core';
 import { createLogger } from '@mastra/core/logger';
 import { shoppingAgent } from './agents/shopping';
