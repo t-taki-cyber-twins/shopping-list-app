@@ -5,7 +5,7 @@ import { mastra } from '@/mastra';
 export async function POST(request: Request) {
   try {
     const { message } = await request.json();
-    const userId = process.env.DEV_USER_ID || 'test_user';
+    const userId = process.env.DEV_USER_ID || 'user_test_123';
 
     const agent = mastra.getAgent('shopping');
     if (!agent) {

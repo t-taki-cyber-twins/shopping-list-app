@@ -9,7 +9,6 @@ export const addItemsTool = createTool({
   description: '買い物リストにアイテムを追加する。複数のアイテムをカンマ区切りで追加できる。',
   inputSchema: z.object({
     items: z.string().describe('追加する商品名（複数の場合はカンマ区切り）'),
-    userId: z.string().describe('ユーザーID'),
   }),
   outputSchema: z.object({
     success: z.boolean(),
@@ -23,7 +22,7 @@ export const addItemsTool = createTool({
   
   execute: async (inputData) => {  // ⚠️ v1形式: 第1引数がinputData
     const { items } = inputData;
-    const userId = process.env.DEV_USER_ID || 'test_user';
+    const userId = process.env.DEV_USER_ID || 'user_test_123';
     
     // カンマや「と」で分割
     const itemList = items
@@ -73,7 +72,6 @@ export const getShoppingListTool = createTool({
   id: 'get-shopping-list',
   description: '現在の買い物リストを取得する。カテゴリ別に整理されている。',
   inputSchema: z.object({
-    userId: z.string().describe('ユーザーID'),
     includeCompleted: z.boolean().optional().describe('完了済みも含めるか'),
   }),
   outputSchema: z.object({
@@ -85,7 +83,7 @@ export const getShoppingListTool = createTool({
   
   execute: async (inputData) => {
     const { includeCompleted = false } = inputData;
-    const userId = process.env.DEV_USER_ID || 'test_user';
+    const userId = process.env.DEV_USER_ID || 'user_test_123';
     
     let query;
     if (includeCompleted) {
@@ -135,7 +133,6 @@ export const completeItemsTool = createTool({
   description: '買い物リストのアイテムを完了（削除）する。',
   inputSchema: z.object({
     items: z.string().describe('完了した商品名（複数の場合はカンマ区切り）'),
-    userId: z.string().describe('ユーザーID'),
   }),
   outputSchema: z.object({
     success: z.boolean(),
@@ -146,7 +143,7 @@ export const completeItemsTool = createTool({
   
   execute: async (inputData) => {
     const { items } = inputData;
-    const userId = process.env.DEV_USER_ID || 'test_user';
+    const userId = process.env.DEV_USER_ID || 'user_test_123';
     
     // 分割
     const itemList = items
@@ -197,7 +194,6 @@ export const clearListTool = createTool({
   id: 'clear-shopping-list',
   description: '買い物リストをすべてクリアする',
   inputSchema: z.object({
-    userId: z.string(),
   }),
   outputSchema: z.object({
     success: z.boolean(),
@@ -205,7 +201,7 @@ export const clearListTool = createTool({
   }),
   
   execute: async (inputData) => {
-    const userId = process.env.DEV_USER_ID || 'test_user';
+    const userId = process.env.DEV_USER_ID || 'user_test_123';
     
     await sql`
       DELETE FROM shopping_items

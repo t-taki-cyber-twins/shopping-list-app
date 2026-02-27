@@ -6,7 +6,7 @@ import { initDatabase } from '../lib/db';
 async function testMastra() {
   console.log('🧪 Mastra + Geminiテスト開始\n');
   
-  const userId = process.env.DEV_USER_ID || 'test_user';
+  const userId = process.env.DEV_USER_ID || 'user_test_123';
   
   try {
     // APIキーの確認

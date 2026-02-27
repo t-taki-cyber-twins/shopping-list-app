@@ -29,7 +29,6 @@ export const checkNearStoreTool = createTool({
   id: 'check-near-store',
   description: '現在地がスーパーの近くかどうか判定する',
   inputSchema: z.object({
-    userId: z.string(),
     latitude: z.number().describe('現在地の緯度'),
     longitude: z.number().describe('現在地の経度'),
   }),
@@ -42,7 +41,7 @@ export const checkNearStoreTool = createTool({
   
   execute: async (inputData) => {
     const { latitude, longitude } = inputData;
-    const userId = process.env.DEV_USER_ID || 'test_user';
+    const userId = process.env.DEV_USER_ID || 'user_test_123';
     
     const result = await sql`
       SELECT * FROM user_stores
@@ -86,7 +85,6 @@ export const registerStoreTool = createTool({
   id: 'register-store',
   description: 'よく行くスーパーを登録する',
   inputSchema: z.object({
-    userId: z.string(),
     name: z.string().describe('スーパーの名前'),
     latitude: z.number(),
     longitude: z.number(),
@@ -99,7 +97,7 @@ export const registerStoreTool = createTool({
   
   execute: async (inputData) => {
     const { name, latitude, longitude, radius = 100 } = inputData;
-    const userId = process.env.DEV_USER_ID || 'test_user';
+    const userId = process.env.DEV_USER_ID || 'user_test_123';
     
     await sql`
       INSERT INTO user_stores (user_id, name, latitude, longitude, radius)
