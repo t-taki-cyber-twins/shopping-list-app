@@ -144,43 +144,57 @@ function createMockSql() {
 // データベース初期化（Vercel環境のみ実行）
 // DDL（CREATE TABLE等）はダイレクト接続で実行する必要があります
 // Vercel Postgres: POSTGRES_URL_NON_POOLING / Prisma Postgres: DIRECT_URL または DATABASE_URL
-export async function initDatabase() {
+export async function initDatabase(): Promise<
+  | { success: true }
+  | { success: false; error: string; code?: string; debug: Record<string, unknown> }
+> {
   if (!isVercel) {
-    console.log('⚠️ ローカル環境: データベース初期化スキップ');
-    return { success: true, message: 'モック環境で実行中' };
+    return { success: true };
+  }
+
+  const directUrl =
+    process.env.POSTGRES_URL_NON_POOLING ||
+    process.env.DIRECT_URL ||
+    process.env.DATABASE_URL ||
+    process.env.POSTGRES_URL;
+  const directUrlSource = process.env.POSTGRES_URL_NON_POOLING
+    ? 'POSTGRES_URL_NON_POOLING'
+    : process.env.DIRECT_URL
+      ? 'DIRECT_URL'
+      : process.env.DATABASE_URL
+        ? 'DATABASE_URL'
+        : process.env.POSTGRES_URL
+          ? 'POSTGRES_URL'
+          : 'none';
+
+  const debugBase = {
+    directUrlSource,
+    hasDirectUrl: !!directUrl,
+    directUrlLength: directUrl ? directUrl.length : 0,
+  };
+
+  if (!directUrl) {
+    return {
+      success: false,
+      error: '接続用の環境変数がありません。',
+      debug: { ...debugBase, step: 'no_url' },
+    };
   }
 
   try {
     const { createClient } = require('@vercel/postgres');
-    // 環境変数を直接参照（ダイレクト推奨だがどれでも createClient は受け付ける）
-    const directUrl =
-      process.env.POSTGRES_URL_NON_POOLING ||
-      process.env.DIRECT_URL ||
-      process.env.DATABASE_URL ||
-      process.env.POSTGRES_URL;
-    const directUrlSource = process.env.POSTGRES_URL_NON_POOLING
-      ? 'POSTGRES_URL_NON_POOLING'
-      : process.env.DIRECT_URL
-        ? 'DIRECT_URL'
-        : process.env.DATABASE_URL
-          ? 'DATABASE_URL'
-          : process.env.POSTGRES_URL
-            ? 'POSTGRES_URL'
-            : 'none';
-    console.error('[db] initDatabase', JSON.stringify({
-      directUrlSource,
-      hasDirectUrl: !!directUrl,
-      directUrlLength: directUrl ? directUrl.length : 0,
-    }));
-    if (!directUrl) {
-      throw new Error(
-        '接続用の環境変数がありません。DATABASE_URL / POSTGRES_URL / POSTGRES_URL_NON_POOLING / DIRECT_URL のいずれかを設定してください。'
-      );
-    }
-    console.error('[db] initDatabase createClient を実行します');
     const client = createClient({ connectionString: directUrl });
-    console.error('[db] initDatabase client.connect を実行します');
-    await client.connect();
+    try {
+      await client.connect();
+    } catch (e) {
+      const err = e as Error & { code?: string };
+      return {
+        success: false,
+        error: err?.message ?? 'connect failed',
+        code: err?.code,
+        debug: { ...debugBase, step: 'connect' },
+      };
+    }
 
     try {
       await client.sql`
@@ -217,16 +231,15 @@ export async function initDatabase() {
       await client.end();
     }
 
-    console.error('[db] initDatabase 成功');
     return { success: true };
   } catch (error) {
     const err = error as Error & { code?: string };
-    console.error('[db] initDatabase 失敗', JSON.stringify({
-      message: err?.message,
+    return {
+      success: false,
+      error: err?.message ?? 'Unknown error',
       code: err?.code,
-      name: err?.name,
-    }));
-    throw error;
+      debug: { ...debugBase, step: 'createClient_or_ddl', errorName: err?.name },
+    };
   }
 }
 
