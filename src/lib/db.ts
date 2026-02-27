@@ -7,8 +7,13 @@ const isVercel = process.env.VERCEL === '1';
 let sql: any;
 
 if (isVercel) {
-  const postgres = require('@vercel/postgres');
-  sql = postgres.sql;
+  const { createPool, postgresConnectionString } = require('@vercel/postgres');
+  // プール接続: Vercel Postgres は POSTGRES_URL、Prisma Postgres は DATABASE_URL
+  const pooledUrl =
+    postgresConnectionString('pool') || process.env.DATABASE_URL;
+  sql = pooledUrl
+    ? createPool({ connectionString: pooledUrl })
+    : require('@vercel/postgres').sql;
 } else {
   // ローカル環境ではモック
   console.log('⚠️ ローカル環境: PostgreSQLモック使用');
@@ -99,6 +104,8 @@ function createMockSql() {
 }
 
 // データベース初期化（Vercel環境のみ実行）
+// DDL（CREATE TABLE等）はダイレクト接続で実行する必要があります
+// Vercel Postgres: POSTGRES_URL_NON_POOLING / Prisma Postgres: DIRECT_URL または DATABASE_URL
 export async function initDatabase() {
   if (!isVercel) {
     console.log('⚠️ ローカル環境: データベース初期化スキップ');
@@ -106,7 +113,21 @@ export async function initDatabase() {
   }
 
   try {
-    await sql`
+    const { createClient, postgresConnectionString } = require('@vercel/postgres');
+    const directUrl =
+      postgresConnectionString('direct') ||
+      process.env.DIRECT_URL ||
+      process.env.DATABASE_URL;
+    if (!directUrl) {
+      throw new Error(
+        '接続用の環境変数がありません。Vercel Postgres の場合は POSTGRES_URL_NON_POOLING、Prisma Postgres の場合は DIRECT_URL または DATABASE_URL を設定してください。'
+      );
+    }
+    const client = createClient({ connectionString: directUrl });
+    await client.connect();
+
+    try {
+      await client.sql`
       CREATE TABLE IF NOT EXISTS shopping_items (
         id SERIAL PRIMARY KEY,
         user_id VARCHAR(255) NOT NULL,
@@ -120,12 +141,12 @@ export async function initDatabase() {
       )
     `;
 
-    await sql`
+      await client.sql`
       CREATE INDEX IF NOT EXISTS idx_user_active 
       ON shopping_items(user_id, completed)
     `;
 
-    await sql`
+      await client.sql`
       CREATE TABLE IF NOT EXISTS user_stores (
         id SERIAL PRIMARY KEY,
         user_id VARCHAR(255) NOT NULL,
@@ -136,6 +157,9 @@ export async function initDatabase() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `;
+    } finally {
+      await client.end();
+    }
 
     console.log('✅ Database initialized successfully');
     return { success: true };
