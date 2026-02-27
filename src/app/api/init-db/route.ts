@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { initDatabase } from '@/lib/db';
 
 export async function GET() {
+  console.log('[init-db] GET 開始', { vercel: process.env.VERCEL === '1' });
   try {
     // Vercel環境でのみ実行
     if (process.env.VERCEL !== '1') {
@@ -11,15 +12,21 @@ export async function GET() {
       }, { status: 403 });
     }
 
+    console.log('[init-db] initDatabase を呼び出します');
     const result = await initDatabase();
-    
+    console.log('[init-db] 成功', { result });
     return NextResponse.json({
       success: true,
       message: 'データベースを初期化しました',
       result,
     });
   } catch (error) {
-    console.error('Database initialization error:', error);
+    const err = error as Error & { code?: string };
+    console.error('[init-db] エラー', {
+      message: err?.message,
+      code: err?.code,
+      name: err?.name,
+    });
     return NextResponse.json({
       error: 'データベース初期化に失敗しました',
       details: error instanceof Error ? error.message : 'Unknown error',

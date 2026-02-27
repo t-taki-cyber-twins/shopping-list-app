@@ -2,6 +2,12 @@
 
 // Vercel環境かどうかをチェック
 const isVercel = process.env.VERCEL === '1';
+console.log('[db] モジュール読み込み', {
+  isVercel,
+  hasDatabaseUrl: !!process.env.DATABASE_URL,
+  hasPostgresUrl: !!process.env.POSTGRES_URL,
+  hasPostgresUrlNonPooling: !!process.env.POSTGRES_URL_NON_POOLING,
+});
 
 // Vercel環境の場合のみPostgresをインポート
 let sql: any;
@@ -16,11 +22,24 @@ if (isVercel) {
       process.env.DATABASE_URL ||
       process.env.POSTGRES_URL ||
       process.env.POSTGRES_URL_NON_POOLING;
+    const urlSource = process.env.DATABASE_URL
+      ? 'DATABASE_URL'
+      : process.env.POSTGRES_URL
+        ? 'POSTGRES_URL'
+        : process.env.POSTGRES_URL_NON_POOLING
+          ? 'POSTGRES_URL_NON_POOLING'
+          : 'none';
+    console.log('[db] getClient', {
+      urlSource,
+      hasUrl: !!url,
+      urlLength: url ? url.length : 0,
+    });
     if (!url) {
       throw new Error(
         '接続用の環境変数がありません。DATABASE_URL / POSTGRES_URL / POSTGRES_URL_NON_POOLING のいずれかを設定してください。'
       );
     }
+    console.log('[db] createClient (sql) を実行します');
     const { createClient } = require('@vercel/postgres');
     _client = createClient({ connectionString: url });
     return _client;
@@ -139,12 +158,28 @@ export async function initDatabase() {
       process.env.DIRECT_URL ||
       process.env.DATABASE_URL ||
       process.env.POSTGRES_URL;
+    const directUrlSource = process.env.POSTGRES_URL_NON_POOLING
+      ? 'POSTGRES_URL_NON_POOLING'
+      : process.env.DIRECT_URL
+        ? 'DIRECT_URL'
+        : process.env.DATABASE_URL
+          ? 'DATABASE_URL'
+          : process.env.POSTGRES_URL
+            ? 'POSTGRES_URL'
+            : 'none';
+    console.log('[db] initDatabase', {
+      directUrlSource,
+      hasDirectUrl: !!directUrl,
+      directUrlLength: directUrl ? directUrl.length : 0,
+    });
     if (!directUrl) {
       throw new Error(
         '接続用の環境変数がありません。DATABASE_URL / POSTGRES_URL / POSTGRES_URL_NON_POOLING / DIRECT_URL のいずれかを設定してください。'
       );
     }
+    console.log('[db] initDatabase createClient を実行します');
     const client = createClient({ connectionString: directUrl });
+    console.log('[db] initDatabase client.connect を実行します');
     await client.connect();
 
     try {
@@ -182,10 +217,15 @@ export async function initDatabase() {
       await client.end();
     }
 
-    console.log('✅ Database initialized successfully');
+    console.log('[db] initDatabase 成功');
     return { success: true };
   } catch (error) {
-    console.error('❌ Database initialization failed:', error);
+    const err = error as Error & { code?: string };
+    console.error('[db] initDatabase 失敗', {
+      message: err?.message,
+      code: err?.code,
+      name: err?.name,
+    });
     throw error;
   }
 }
