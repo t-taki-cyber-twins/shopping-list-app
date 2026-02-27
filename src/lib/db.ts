@@ -2,56 +2,37 @@
 
 // Vercel環境かどうかをチェック
 const isVercel = process.env.VERCEL === '1';
-console.error('[db] モジュール読み込み', JSON.stringify({
-  isVercel,
-  hasDatabaseUrl: !!process.env.DATABASE_URL,
-  hasPostgresUrl: !!process.env.POSTGRES_URL,
-  hasPostgresUrlNonPooling: !!process.env.POSTGRES_URL_NON_POOLING,
-}));
 
 // Vercel環境の場合のみPostgresをインポート
 let sql: any;
 
 if (isVercel) {
-  // 遅延初期化: ビルド時は env が無く、実行時にだけ接続する。default の sql（createPool）は
-  // 直接URLでエラーになるため使わず、必ず createClient を実行時生成する。
-  let _client: any = null;
-  function getClient() {
-    if (_client) return _client;
+  // Prisma Postgres の DATABASE_URL は @vercel/postgres（Neon WebSocket）で 404 になるため、
+  // 標準の pg（TCP）を使用する。
+  let _pool: any = null;
+  function getPool() {
+    if (_pool) return _pool;
     const url =
       process.env.DATABASE_URL ||
       process.env.POSTGRES_URL ||
       process.env.POSTGRES_URL_NON_POOLING;
-    const urlSource = process.env.DATABASE_URL
-      ? 'DATABASE_URL'
-      : process.env.POSTGRES_URL
-        ? 'POSTGRES_URL'
-        : process.env.POSTGRES_URL_NON_POOLING
-          ? 'POSTGRES_URL_NON_POOLING'
-          : 'none';
-    console.error('[db] getClient', JSON.stringify({
-      urlSource,
-      hasUrl: !!url,
-      urlLength: url ? url.length : 0,
-    }));
     if (!url) {
       throw new Error(
         '接続用の環境変数がありません。DATABASE_URL / POSTGRES_URL / POSTGRES_URL_NON_POOLING のいずれかを設定してください。'
       );
     }
-    console.error('[db] createClient (sql) を実行します');
-    const { createClient } = require('@vercel/postgres');
-    _client = createClient({ connectionString: url });
-    return _client;
+    const { Pool } = require('pg');
+    _pool = new Pool({ connectionString: url, max: 2 });
+    return _pool;
   }
-  sql = new Proxy(function () {} as any, {
-    apply(_, __, args: unknown[]) {
-      return (getClient() as any).sql(...args);
-    },
-    get(_, prop) {
-      return (getClient() as any)[prop];
-    },
-  });
+  function sqlTag(strings: TemplateStringsArray, ...values: unknown[]) {
+    let text = strings[0];
+    for (let i = 1; i < strings.length; i++) {
+      text += '$' + i + strings[i];
+    }
+    return getPool().query(text, values);
+  }
+  sql = sqlTag;
 } else {
   // ローカル環境ではモック
   console.log('⚠️ ローカル環境: PostgreSQLモック使用');
@@ -182,8 +163,8 @@ export async function initDatabase(): Promise<
   }
 
   try {
-    const { createClient } = require('@vercel/postgres');
-    const client = createClient({ connectionString: directUrl });
+    const { Client } = require('pg');
+    const client = new Client({ connectionString: directUrl });
     try {
       await client.connect();
     } catch (e) {
@@ -197,36 +178,34 @@ export async function initDatabase(): Promise<
     }
 
     try {
-      await client.sql`
-      CREATE TABLE IF NOT EXISTS shopping_items (
-        id SERIAL PRIMARY KEY,
-        user_id VARCHAR(255) NOT NULL,
-        name VARCHAR(255) NOT NULL,
-        category VARCHAR(100),
-        quantity VARCHAR(50) DEFAULT '1',
-        priority VARCHAR(20) DEFAULT 'normal',
-        completed BOOLEAN DEFAULT false,
-        added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        completed_at TIMESTAMP
-      )
-    `;
-
-      await client.sql`
-      CREATE INDEX IF NOT EXISTS idx_user_active 
-      ON shopping_items(user_id, completed)
-    `;
-
-      await client.sql`
-      CREATE TABLE IF NOT EXISTS user_stores (
-        id SERIAL PRIMARY KEY,
-        user_id VARCHAR(255) NOT NULL,
-        name VARCHAR(255) NOT NULL,
-        latitude DECIMAL(10, 8) NOT NULL,
-        longitude DECIMAL(11, 8) NOT NULL,
-        radius INT DEFAULT 100,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `;
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS shopping_items (
+          id SERIAL PRIMARY KEY,
+          user_id VARCHAR(255) NOT NULL,
+          name VARCHAR(255) NOT NULL,
+          category VARCHAR(100),
+          quantity VARCHAR(50) DEFAULT '1',
+          priority VARCHAR(20) DEFAULT 'normal',
+          completed BOOLEAN DEFAULT false,
+          added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          completed_at TIMESTAMP
+        )
+      `);
+      await client.query(`
+        CREATE INDEX IF NOT EXISTS idx_user_active
+        ON shopping_items(user_id, completed)
+      `);
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS user_stores (
+          id SERIAL PRIMARY KEY,
+          user_id VARCHAR(255) NOT NULL,
+          name VARCHAR(255) NOT NULL,
+          latitude DECIMAL(10, 8) NOT NULL,
+          longitude DECIMAL(11, 8) NOT NULL,
+          radius INT DEFAULT 100,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
     } finally {
       await client.end();
     }
