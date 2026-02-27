@@ -7,15 +7,16 @@ const isVercel = process.env.VERCEL === '1';
 let sql: any;
 
 if (isVercel) {
-  const { createPool, createClient, postgresConnectionString } =
+  const { createClient, postgresConnectionString } =
     require('@vercel/postgres');
-  const vercelPooledUrl = postgresConnectionString('pool');
-  if (vercelPooledUrl) {
-    // Vercel Postgres: プール用 URL が明示されている場合のみ createPool を使用
-    sql = createPool({ connectionString: vercelPooledUrl });
-  } else if (process.env.DATABASE_URL) {
-    // Prisma Postgres など: DATABASE_URL のみの場合はダイレクトの可能性があるため createClient を使用
-    sql = createClient({ connectionString: process.env.DATABASE_URL });
+  // Prisma Postgres / Vercel Postgres いずれも接続文字列がダイレクトのことがあるため、
+  // createPool は使わず createClient に統一（invalid_connection_string を防ぐ）
+  const connectionUrl =
+    process.env.DATABASE_URL ||
+    postgresConnectionString('pool') ||
+    postgresConnectionString('direct');
+  if (connectionUrl) {
+    sql = createClient({ connectionString: connectionUrl });
   } else {
     sql = require('@vercel/postgres').sql;
   }
