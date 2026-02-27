@@ -7,7 +7,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "mastra dev",
     "build": "mastra build",
-    "start": "mastra start"
+    "start": "mastra start",
+    "test:mastra": "npx tsx src/scripts/test-mastra.ts"
   },
   "keywords": [],
   "author": "",
@@ -18,16 +19,20 @@
     "node": ">=22.13.0"
   },
   "dependencies": {
+    "@ai-sdk/google": "^3.0.33",
     "@mastra/core": "^1.8.0",
     "@mastra/evals": "^1.1.2",
     "@mastra/libsql": "^1.6.2",
     "@mastra/loggers": "^1.0.2",
     "@mastra/memory": "^1.5.2",
     "@mastra/observability": "^1.2.1",
+    "@mastra/pg": "^1.7.0",
+    "@vercel/postgres": "^0.10.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {
     "@types/node": "^25.3.2",
+    "dotenv": "^17.0.0",
     "mastra": "^1.3.5",
     "typescript": "^5.9.3"
   }
