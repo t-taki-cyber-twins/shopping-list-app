@@ -7,19 +7,32 @@ const isVercel = process.env.VERCEL === '1';
 let sql: any;
 
 if (isVercel) {
-  const { createClient, postgresConnectionString } =
-    require('@vercel/postgres');
-  // Prisma Postgres / Vercel Postgres いずれも接続文字列がダイレクトのことがあるため、
-  // createPool は使わず createClient に統一（invalid_connection_string を防ぐ）
-  const connectionUrl =
-    process.env.DATABASE_URL ||
-    postgresConnectionString('pool') ||
-    postgresConnectionString('direct');
-  if (connectionUrl) {
-    sql = createClient({ connectionString: connectionUrl });
-  } else {
-    sql = require('@vercel/postgres').sql;
+  // 遅延初期化: ビルド時は env が無く、実行時にだけ接続する。default の sql（createPool）は
+  // 直接URLでエラーになるため使わず、必ず createClient を実行時生成する。
+  let _client: any = null;
+  function getClient() {
+    if (_client) return _client;
+    const url =
+      process.env.DATABASE_URL ||
+      process.env.POSTGRES_URL ||
+      process.env.POSTGRES_URL_NON_POOLING;
+    if (!url) {
+      throw new Error(
+        '接続用の環境変数がありません。DATABASE_URL / POSTGRES_URL / POSTGRES_URL_NON_POOLING のいずれかを設定してください。'
+      );
+    }
+    const { createClient } = require('@vercel/postgres');
+    _client = createClient({ connectionString: url });
+    return _client;
   }
+  sql = new Proxy(function () {} as any, {
+    apply(_, __, args: unknown[]) {
+      return (getClient() as any).sql(...args);
+    },
+    get(_, prop) {
+      return (getClient() as any)[prop];
+    },
+  });
 } else {
   // ローカル環境ではモック
   console.log('⚠️ ローカル環境: PostgreSQLモック使用');
@@ -119,14 +132,16 @@ export async function initDatabase() {
   }
 
   try {
-    const { createClient, postgresConnectionString } = require('@vercel/postgres');
+    const { createClient } = require('@vercel/postgres');
+    // 環境変数を直接参照（ダイレクト推奨だがどれでも createClient は受け付ける）
     const directUrl =
-      postgresConnectionString('direct') ||
+      process.env.POSTGRES_URL_NON_POOLING ||
       process.env.DIRECT_URL ||
-      process.env.DATABASE_URL;
+      process.env.DATABASE_URL ||
+      process.env.POSTGRES_URL;
     if (!directUrl) {
       throw new Error(
-        '接続用の環境変数がありません。Vercel Postgres の場合は POSTGRES_URL_NON_POOLING、Prisma Postgres の場合は DIRECT_URL または DATABASE_URL を設定してください。'
+        '接続用の環境変数がありません。DATABASE_URL / POSTGRES_URL / POSTGRES_URL_NON_POOLING / DIRECT_URL のいずれかを設定してください。'
       );
     }
     const client = createClient({ connectionString: directUrl });
