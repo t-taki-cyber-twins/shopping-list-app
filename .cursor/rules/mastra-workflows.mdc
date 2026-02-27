@@ -1,0 +1,49 @@
+---
+description: Mastra ワークフローの実装ガイドラインとトラブルシューティング (src/mastra/workflows/**/*.ts)
+globs: src/mastra/workflows/**/*.ts
+alwaysApply: false
+---
+
+# Mastra Workflows Rules
+
+このルールは、`src/mastra/workflows/**/*.ts` におけるワークフローの実装指針をまとめたものです。
+
+## ワークフローの導入基準
+
+- **ハルシネーション防止**: Agent がツール呼び出しをスキップしたり、実行したと嘘をついたりする場合に導入します。
+- **決定論的な実行**: 処理の順序（意図解析 -> ツール実行 -> 結果報告）を厳密に制御したい場合に適しています。
+
+## 実装パターン
+
+### 1ステップ構成（推奨）
+Mastra 1.x の開発初期や、Gemini モデルを使用する場合は、**単一のステップですべての処理（解析・実行・回答生成）を行う構成**を推奨します。
+- **理由**: ステップ間のデータマッピング（`inputData` / `context`）の不具合や、型バリデーションエラーを物理的に回避でき、開発効率と安定性が向上します。
+
+### 複数ステップ構成
+複雑な分岐やループ、並列処理が必要な場合にのみ使用します。
+- `context.getStepResult('stepId')` を使用して前のステップの結果を確実に取得します。
+- `inputSchema` と `outputSchema` を厳密に定義し、型の不整合を防ぎます。
+
+## Gemini モデル利用時の注意点
+
+- **Structured Output の制限**: `agent.generate` で `structuredOutput` を指定すると、一部のモデルで MIME タイプエラーが発生することがあります。
+- **対策**: インテント解析などの構造化データが必要な場面では、プレーンテキストで JSON を出力させ、プログラム側で `JSON.parse` する方式を採用してください。
+
+## API 連携 (Next.js 等)
+
+ワークフローの実行は以下の手順で行います：
+
+```typescript
+const workflow = mastra.getWorkflow('workflowId');
+const run = await workflow.createRun();
+const result = await run.start({
+  inputData: { message: 'ユーザー入力' },
+});
+
+// 結果の取得
+const responseText = (result.result as any).text;
+```
+
+## ロギング
+- 各処理の節目で `console.log` を出力し、解析結果や実行されたアクションを追跡可能にします。
+- ステップの `execute` 関数内で `mastra` インスタンスからログ出力を取得して使用することも検討してください。
